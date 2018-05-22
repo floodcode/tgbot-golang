@@ -57,7 +57,7 @@ func startBot() {
 	botUser, err = bot.GetMe()
 	checkError(err)
 
-	cmdMatch = regexp.MustCompile(`^\/([a-zA-Z_]+)(?:@` + botUser.Username + `)?(?:[\s\n]+(.+)|)$`)
+	cmdMatch = regexp.MustCompile(`(?s)^\/([a-zA-Z_]+)(?:@` + botUser.Username + `)?(?:[\s\n]+(.+)|)$`)
 
 	err = bot.Poll(tgbot.PollConfig{
 		Delay:    250,
