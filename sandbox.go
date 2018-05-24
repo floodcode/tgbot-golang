@@ -17,7 +17,7 @@ import (
 
 const (
 	maxRunTime = 8 * time.Second
-	progName   = "prog.go"
+	progName   = "main.go"
 )
 
 func executeSource(src string) ([]Event, error) {
@@ -27,7 +27,7 @@ func executeSource(src string) ([]Event, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	in := filepath.Join(tmpDir, "main.go")
+	in := filepath.Join(tmpDir, progName)
 	cmd := exec.Command("goimports")
 	inPipe, err := cmd.StdinPipe()
 	if err != nil {

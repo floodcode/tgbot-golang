@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -28,16 +27,28 @@ func pingAction(req BotRequest) {
 }
 
 func compileAction(req BotRequest) {
-	output, err := compileAndRun(req.args)
-	if err != nil {
-		req.QuickAnswer(err.Error())
+	req.SendTyping()
+
+	if len(strings.TrimSpace(req.args)) == 0 {
+		req.QuickError("no input specified")
 		return
 	}
 
-	req.QuickAnswer(fmt.Sprintf("*Output:*\n```\n%s\n```", output))
+	output, err := compileAndRun(req.args)
+	if err != nil {
+		req.QuickError(err.Error())
+		return
+	}
+
+	req.QuickAnswer(fmt.Sprintf("```\n%s\n```", output))
 }
 
 func mainAction(req BotRequest) {
+	if len(strings.TrimSpace(req.args)) == 0 {
+		req.QuickError("no input specified")
+		return
+	}
+
 	codeTemplate := `
 	package main
 
@@ -63,7 +74,7 @@ func compileAndRun(src string) (string, error) {
 	output = strings.TrimSpace(output)
 
 	if len(output) == 0 {
-		return "", errors.New("program was executed with no output")
+		return "[no output]", nil
 	}
 
 	return output, nil

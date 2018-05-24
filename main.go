@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -40,6 +41,19 @@ func (req *BotRequest) QuickAnswer(text string) {
 		Text:             text,
 		ReplyToMessageID: req.msg.MessageID,
 		ParseMode:        tgbot.ParseModeMarkdown(),
+	})
+}
+
+// QuickError sends error message in reply to origin message
+func (req *BotRequest) QuickError(text string) {
+	req.QuickAnswer(fmt.Sprintf("`Error: %s`", text))
+}
+
+// SendTyping sends chat action "typing" to origin chan
+func (req *BotRequest) SendTyping() {
+	bot.SendChatAction(tgbot.SendChatActionConfig{
+		ChatID: tgbot.ChatID(req.msg.Chat.ID),
+		Action: tgbot.ChatActionTyping(),
 	})
 }
 
