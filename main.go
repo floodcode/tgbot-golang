@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	configPath = "config.json"
+	configPath       = "config.json"
+	cmdMatchTemplate = `(?s)^\/([a-zA-Z_]+)(?:@%s)?(?:[\s\n]+(.+)|)$`
 )
 
 var (
@@ -71,7 +72,7 @@ func startBot() {
 	botUser, err = bot.GetMe()
 	checkError(err)
 
-	cmdMatch = regexp.MustCompile(`(?s)^\/([a-zA-Z_]+)(?:@` + botUser.Username + `)?(?:[\s\n]+(.+)|)$`)
+	cmdMatch = regexp.MustCompile(fmt.Sprintf(cmdMatchTemplate, botUser.Username))
 
 	err = bot.Poll(tgbot.PollConfig{
 		Delay:    250,

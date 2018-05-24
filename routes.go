@@ -59,23 +59,3 @@ func mainAction(req BotRequest) {
 	req.args = fmt.Sprintf(codeTemplate, req.args)
 	compileAction(req)
 }
-
-func compileAndRun(src string) (string, error) {
-	events, err := executeSource(strings.TrimSpace(src))
-	if err != nil {
-		return "", err
-	}
-
-	var output string
-	for _, event := range events {
-		output += event.Message
-	}
-
-	output = strings.TrimSpace(output)
-
-	if len(output) == 0 {
-		return "[no output]", nil
-	}
-
-	return output, nil
-}

@@ -20,6 +20,26 @@ const (
 	progName   = "main.go"
 )
 
+func compileAndRun(src string) (string, error) {
+	events, err := executeSource(strings.TrimSpace(src))
+	if err != nil {
+		return "", err
+	}
+
+	var output string
+	for _, event := range events {
+		output += event.Message
+	}
+
+	output = strings.TrimSpace(output)
+
+	if len(output) == 0 {
+		return "[no output]", nil
+	}
+
+	return output, nil
+}
+
 func executeSource(src string) ([]Event, error) {
 	tmpDir, err := ioutil.TempDir("", "sandbox")
 	if err != nil {
