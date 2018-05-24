@@ -19,6 +19,8 @@ func helpAction(req BotRequest) {
 		"/help - Get this message",
 		"/compile - Compile code",
 		"/main - Compile code in main function",
+		"",
+		fmt.Sprintf("Source code is located [here](%s)", "https://github.com/floodcode/tgbot-golang"),
 	}, "\n")))
 }
 

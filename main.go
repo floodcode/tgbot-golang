@@ -38,10 +38,11 @@ type BotRequest struct {
 // QuickAnswer sends simple text message in reply to origin message
 func (req *BotRequest) QuickAnswer(text string) {
 	bot.SendMessage(tgbot.SendMessageConfig{
-		ChatID:           tgbot.ChatID(req.msg.Chat.ID),
-		Text:             text,
-		ReplyToMessageID: req.msg.MessageID,
-		ParseMode:        tgbot.ParseModeMarkdown(),
+		ChatID:                tgbot.ChatID(req.msg.Chat.ID),
+		Text:                  text,
+		ReplyToMessageID:      req.msg.MessageID,
+		ParseMode:             tgbot.ParseModeMarkdown(),
+		DisableWebPagePreview: true,
 	})
 }
 
