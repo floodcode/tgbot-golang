@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,9 +27,21 @@ func executeSource(src string) ([]Event, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	byteSrc := []byte(src)
 	in := filepath.Join(tmpDir, "main.go")
-	if err := ioutil.WriteFile(in, byteSrc, 0400); err != nil {
+	cmd := exec.Command("goimports")
+	inPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("error generating imports for source file: %v", err)
+	}
+
+	inPipe.Write([]byte(src))
+	inPipe.Close()
+	outImports := bytes.Buffer{}
+	cmd.Stdout = &outImports
+	cmd.Start()
+	cmd.Wait()
+
+	if err := ioutil.WriteFile(in, outImports.Bytes(), 0400); err != nil {
 		return nil, fmt.Errorf("error creating temp file %q: %v", in, err)
 	}
 
@@ -40,7 +53,7 @@ func executeSource(src string) ([]Event, error) {
 	}
 
 	exe := filepath.Join(tmpDir, "a.out")
-	cmd := exec.Command("go", "build", "-o", exe, in)
+	cmd = exec.Command("go", "build", "-o", exe, in)
 	cmd.Env = []string{"GOOS=nacl", "GOARCH=amd64p32", "GOPATH=" + os.Getenv("GOPATH")}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
