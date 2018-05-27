@@ -20,40 +20,17 @@ const (
 	progName   = "main.go"
 )
 
-func compileAndRun(src string) (string, error) {
-	events, err := executeSource(strings.TrimSpace(src))
-	if err != nil {
-		return "", err
-	}
-
-	var output string
-	for _, event := range events {
-		output += event.Message
-	}
-
-	output = strings.TrimSpace(output)
-
-	if len(output) == 0 {
-		return "[no output]", nil
-	}
-
-	return output, nil
-}
-
-func executeSource(src string) ([]Event, error) {
+func runCode(src string) (string, error) {
 	tmpDir, err := ioutil.TempDir("", "sandbox")
 	if err != nil {
-		return nil, fmt.Errorf("error creating temp directory: %v", err)
+		return "", fmt.Errorf("error creating temp directory: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Generate imports
 	in := filepath.Join(tmpDir, progName)
 	cmd := exec.Command("goimports")
-	inPipe, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, fmt.Errorf("error generating imports for source file: %v", err)
-	}
-
+	inPipe, _ := cmd.StdinPipe()
 	inPipe.Write([]byte(src))
 	inPipe.Close()
 	outImports := bytes.Buffer{}
@@ -62,16 +39,17 @@ func executeSource(src string) ([]Event, error) {
 	cmd.Wait()
 
 	if err := ioutil.WriteFile(in, outImports.Bytes(), 0400); err != nil {
-		return nil, fmt.Errorf("error creating temp file %q: %v", in, err)
+		return "", fmt.Errorf("error creating temp file %q: %v", in, err)
 	}
 
+	// Check package name
 	fset := token.NewFileSet()
-
 	f, err := parser.ParseFile(fset, in, nil, parser.PackageClauseOnly)
 	if err == nil && f.Name.Name != "main" {
-		return nil, errors.New("package name must be main")
+		return "", errors.New("package name must be main")
 	}
 
+	// Build source
 	exe := filepath.Join(tmpDir, "a.out")
 	cmd = exec.Command("go", "build", "-o", exe, in)
 	cmd.Env = []string{"GOOS=nacl", "GOARCH=amd64p32", "GOPATH=" + os.Getenv("GOPATH")}
@@ -79,33 +57,52 @@ func executeSource(src string) ([]Event, error) {
 		if _, ok := err.(*exec.ExitError); ok {
 			errs := strings.Replace(string(out), in, progName, -1)
 			errs = strings.Replace(errs, "# command-line-arguments\n", "", 1)
-			return nil, errors.New(errs)
+			return "", errors.New(errs)
 		}
 
-		return nil, fmt.Errorf("error building go source: %v", err)
+		return "", fmt.Errorf("error building go source: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxRunTime)
 	defer cancel()
 
+	// Execute built program under sandbox
 	cmd = exec.CommandContext(ctx, "./sel_ldr_x86_64", "-l", "/dev/null", "-S", "-e", exe)
 	rec := new(Recorder)
 	cmd.Stdout = rec.Stdout()
 	cmd.Stderr = rec.Stderr()
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, errors.New("process took too long")
+			return "", errors.New("process took too long")
 		}
 		if _, ok := err.(*exec.ExitError); !ok {
-			return nil, fmt.Errorf("error running sandbox: %v", err)
+			return "", fmt.Errorf("error running sandbox: %v", err)
 		}
 	}
 
+	// Decode program output
 	events, err := rec.Events()
 	if err != nil {
-		return nil, fmt.Errorf("error decoding events: %v", err)
+		return "", fmt.Errorf("error decoding events: %v", err)
 	}
 
-	return events, nil
+	var outputString string
+	for _, event := range events {
+		outputString += event.Message
+	}
 
+	return outputString, nil
+}
+
+func formatCode(src string) string {
+	cmd := exec.Command("gofmt")
+	inPipe, _ := cmd.StdinPipe()
+	inPipe.Write([]byte(src))
+	inPipe.Close()
+	outImports := bytes.Buffer{}
+	cmd.Stdout = &outImports
+	cmd.Start()
+	cmd.Wait()
+
+	return string(outImports.Bytes())
 }

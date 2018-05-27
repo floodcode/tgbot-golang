@@ -11,6 +11,7 @@ func addRoutes() {
 	addRoute("ping", pingAction)
 	addRoute("compile", compileAction)
 	addRoute("main", mainAction)
+	addRoute("fmt", fmtAction)
 }
 
 func helpAction(req BotRequest) {
@@ -19,6 +20,7 @@ func helpAction(req BotRequest) {
 		"/help - Get this message",
 		"/compile - Compile code",
 		"/main - Compile code in main function",
+		"/fmt - Format code",
 		"",
 		fmt.Sprintf("Source code is located [here](%s)", "https://github.com/floodcode/tgbot-golang"),
 	}, "\n")))
@@ -31,12 +33,13 @@ func pingAction(req BotRequest) {
 func compileAction(req BotRequest) {
 	req.SendTyping()
 
-	if len(strings.TrimSpace(req.args)) == 0 {
+	src := strings.TrimSpace(req.args)
+	if len(src) == 0 {
 		req.QuickError("no input specified")
 		return
 	}
 
-	output, err := compileAndRun(req.args)
+	output, err := runCode(src)
 	if err != nil {
 		req.QuickError(err.Error())
 		return
@@ -46,7 +49,8 @@ func compileAction(req BotRequest) {
 }
 
 func mainAction(req BotRequest) {
-	if len(strings.TrimSpace(req.args)) == 0 {
+	src := strings.TrimSpace(req.args)
+	if len(src) == 0 {
 		req.QuickError("no input specified")
 		return
 	}
@@ -58,6 +62,18 @@ func mainAction(req BotRequest) {
 		%s
 	}`
 
-	req.args = fmt.Sprintf(codeTemplate, req.args)
+	req.args = fmt.Sprintf(codeTemplate, src)
 	compileAction(req)
+}
+
+func fmtAction(req BotRequest) {
+	req.SendTyping()
+
+	src := strings.TrimSpace(req.args)
+	if len(src) == 0 {
+		req.QuickError("no input specified")
+		return
+	}
+
+	req.QuickAnswer(fmt.Sprintf("```\n%s\n```", formatCode(src)))
 }
