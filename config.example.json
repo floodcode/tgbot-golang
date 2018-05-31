@@ -1,3 +1,4 @@
 {
-    "token": "<YOUR_API_TOKEN>"
+    "token": "<YOUR_API_TOKEN>",
+    "delay": 300
 }

@@ -4,134 +4,117 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"strings"
 
-	"github.com/floodcode/tgbot"
+	"github.com/floodcode/tbf"
 )
 
 const (
-	configPath       = "config.json"
-	cmdMatchTemplate = `(?s)^\/([a-zA-Z_]+)(?:@%s)?(?:[\s\n]+(.+)|)$`
+	configPath = "config.json"
 )
 
 var (
-	bot       tgbot.TelegramBot
-	botUser   tgbot.User
+	bot       tbf.TelegramBotFramework
 	botConfig BotConfig
-	cmdMatch  *regexp.Regexp
-	cmdList   = map[string]func(BotRequest){}
 )
 
 // BotConfig contains bot's environment variables
 type BotConfig struct {
 	Token string `json:"token"`
-}
-
-// BotRequest represents bot command
-type BotRequest struct {
-	msg  tgbot.Message
-	cmd  string
-	args string
-}
-
-// QuickAnswer sends simple text message in reply to origin message
-func (req *BotRequest) QuickAnswer(text string) {
-	bot.SendMessage(tgbot.SendMessageConfig{
-		ChatID:                tgbot.ChatID(req.msg.Chat.ID),
-		Text:                  text,
-		ReplyToMessageID:      req.msg.MessageID,
-		ParseMode:             tgbot.ParseModeMarkdown(),
-		DisableWebPagePreview: true,
-	})
-}
-
-// QuickError sends error message in reply to origin message
-func (req *BotRequest) QuickError(text string) {
-	req.QuickAnswer(fmt.Sprintf("`Error: %s`", text))
-}
-
-// SendTyping sends chat action "typing" to origin chan
-func (req *BotRequest) SendTyping() {
-	bot.SendChatAction(tgbot.SendChatActionConfig{
-		ChatID: tgbot.ChatID(req.msg.Chat.ID),
-		Action: tgbot.ChatActionTyping(),
-	})
+	Delay int    `json:"delay"`
 }
 
 func main() {
-	loadConfig()
-	addRoutes()
-	startBot()
-}
-
-func startBot() {
-	var err error
-	bot, err = tgbot.New(botConfig.Token)
-	checkError(err)
-
-	botUser, err = bot.GetMe()
-	checkError(err)
-
-	cmdMatch = regexp.MustCompile(fmt.Sprintf(cmdMatchTemplate, botUser.Username))
-
-	err = bot.Poll(tgbot.PollConfig{
-		Delay:    250,
-		Callback: updatesCallback,
-	})
-
-	checkError(err)
-}
-
-func loadConfig() {
 	configData, err := ioutil.ReadFile(configPath)
 	checkError(err)
 
 	err = json.Unmarshal(configData, &botConfig)
 	checkError(err)
-}
 
-func getRoute(route string) (callback func(BotRequest), ok bool) {
-	callback, ok = cmdList[route]
-	return callback, ok
-}
+	bot, err = tbf.New(botConfig.Token)
+	checkError(err)
 
-func addRoute(route string, callback func(BotRequest)) {
-	cmdList[route] = callback
-}
+	addRoutes()
 
-func updatesCallback(updates []tgbot.Update) {
-	for _, update := range updates {
-		if update.Message == nil || len(update.Message.Text) == 0 {
-			continue
-		}
-
-		processTextMessage(update.Message)
-	}
-}
-
-func processTextMessage(msg *tgbot.Message) {
-	match := cmdMatch.FindStringSubmatch(msg.Text)
-
-	if match == nil {
-		return
-	}
-
-	processRequest(BotRequest{
-		msg:  *msg,
-		cmd:  strings.ToLower(match[1]),
-		args: match[2],
+	err = bot.Poll(tbf.PollConfig{
+		Delay: botConfig.Delay,
 	})
-}
 
-func processRequest(req BotRequest) {
-	if callback, ok := getRoute(req.cmd); ok {
-		callback(req)
-	}
+	checkError(err)
 }
 
 func checkError(e error) {
 	if e != nil {
 		panic(e)
+	}
+}
+
+func addRoutes() {
+	bot.AddRoute("help", helpAction)
+	bot.AddRoute("start", helpAction)
+	bot.AddRoute("ping", pingAction)
+	bot.AddRoute("compile", compileAction)
+	bot.AddRoute("main", mainAction)
+	bot.AddRoute("fmt", fmtAction)
+}
+
+func helpAction(req tbf.BotRequest) {
+	req.QuickReplyMD(fmt.Sprintf(strings.Join([]string{
+		"Available commads:",
+		"/help - Get this message",
+		"/compile - Compile code",
+		"/main - Compile code in main function",
+		"/fmt - Format code",
+	}, "\n")))
+}
+
+func pingAction(req tbf.BotRequest) {
+	req.QuickMessage("Pong!")
+}
+
+func compileAction(req tbf.BotRequest) {
+	code := getCode(req)
+	req.SendTyping()
+
+	output, err := runCode(code)
+	if err != nil {
+		req.QuickReply("Error: " + err.Error())
+		return
+	}
+
+	req.QuickReplyMD(fmt.Sprintf("```\n%s\n```", output))
+}
+
+func mainAction(req tbf.BotRequest) {
+	codeTemplate := `
+	package main
+
+	func main() {
+		%s
+	}`
+
+	req.Args = fmt.Sprintf(codeTemplate, getCode(req))
+	compileAction(req)
+}
+
+func fmtAction(req tbf.BotRequest) {
+	code := getCode(req)
+	req.SendTyping()
+	req.QuickReplyMD(fmt.Sprintf("```\n%s\n```", formatCode(code)))
+}
+
+func getCode(req tbf.BotRequest) string {
+	if len(req.Args) != 0 {
+		return req.Args
+	}
+
+	req.QuickReply("Now send me the code")
+	for {
+		newReq := req.WaitNext()
+		if newReq.Message.Text != "" {
+			return newReq.Message.Text
+		}
+
+		req.QuickReply("You should send code as a text message")
 	}
 }
