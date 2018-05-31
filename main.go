@@ -59,7 +59,7 @@ func addRoutes() {
 }
 
 func helpAction(req tbf.BotRequest) {
-	req.QuickReplyMD(fmt.Sprintf(strings.Join([]string{
+	req.QuickMessageMD(fmt.Sprintf(strings.Join([]string{
 		"Available commads:",
 		"/help - Get this message",
 		"/compile - Compile code",
@@ -78,11 +78,16 @@ func compileAction(req tbf.BotRequest) {
 
 	output, err := runCode(code)
 	if err != nil {
-		req.QuickReply("Error: " + err.Error())
+		req.QuickMessage("Error: " + err.Error())
 		return
 	}
 
-	req.QuickReplyMD(fmt.Sprintf("```\n%s\n```", output))
+	output = strings.TrimSpace(output)
+	if len(output) == 0 {
+		req.QuickMessage("No output")
+	} else {
+		req.QuickMessageMD(fmt.Sprintf("```\n%s\n```", output))
+	}
 }
 
 func mainAction(req tbf.BotRequest) {
@@ -98,9 +103,12 @@ func mainAction(req tbf.BotRequest) {
 }
 
 func fmtAction(req tbf.BotRequest) {
-	code := getCode(req)
-	req.SendTyping()
-	req.QuickReplyMD(fmt.Sprintf("```\n%s\n```", formatCode(code)))
+	formatedCode := strings.TrimSpace(formatCode(getCode(req)))
+	if len(formatedCode) == 0 {
+		req.QuickMessage("No output")
+	} else {
+		req.QuickMessageMD(fmt.Sprintf("```\n%s\n```", formatedCode))
+	}
 }
 
 func getCode(req tbf.BotRequest) string {
@@ -108,13 +116,14 @@ func getCode(req tbf.BotRequest) string {
 		return req.Args
 	}
 
-	req.QuickReply("Now send me the code")
+	req.QuickMessage("Now send me the code")
+
 	for {
 		newReq := req.WaitNext()
 		if newReq.Message.Text != "" {
 			return newReq.Message.Text
 		}
 
-		req.QuickReply("You should send code as a text message")
+		req.QuickMessage("You should send code as a text message")
 	}
 }
