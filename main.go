@@ -58,7 +58,7 @@ func addRoutes() {
 	bot.AddRoute("fmt", fmtAction)
 }
 
-func helpAction(req tbf.BotRequest) {
+func helpAction(req tbf.Request) {
 	req.QuickMessageMD(fmt.Sprintf(strings.Join([]string{
 		"Available commads:",
 		"/help - Get this message",
@@ -68,11 +68,11 @@ func helpAction(req tbf.BotRequest) {
 	}, "\n")))
 }
 
-func pingAction(req tbf.BotRequest) {
+func pingAction(req tbf.Request) {
 	req.QuickMessage("Pong!")
 }
 
-func compileAction(req tbf.BotRequest) {
+func compileAction(req tbf.Request) {
 	code := getCode(req)
 	req.SendTyping()
 
@@ -90,7 +90,7 @@ func compileAction(req tbf.BotRequest) {
 	}
 }
 
-func mainAction(req tbf.BotRequest) {
+func mainAction(req tbf.Request) {
 	codeTemplate := `
 	package main
 
@@ -102,7 +102,7 @@ func mainAction(req tbf.BotRequest) {
 	compileAction(req)
 }
 
-func fmtAction(req tbf.BotRequest) {
+func fmtAction(req tbf.Request) {
 	formatedCode := strings.TrimSpace(formatCode(getCode(req)))
 	if len(formatedCode) == 0 {
 		req.QuickMessage("No output")
@@ -111,7 +111,7 @@ func fmtAction(req tbf.BotRequest) {
 	}
 }
 
-func getCode(req tbf.BotRequest) string {
+func getCode(req tbf.Request) string {
 	if len(req.Args) != 0 {
 		return req.Args
 	}
